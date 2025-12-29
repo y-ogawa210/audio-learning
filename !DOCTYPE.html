@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Excelから読み込んで、聞くだけでスルスル覚えるフラッシュカード</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Shift-JIS → UTF-8 変換 -->
+  <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
+
+  <!-- XLSX 読み込み用（SheetJS） -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #f7f7fa;
+      color: #222;
+    }
+
+    header {
+      padding: 12px 16px 4px 16px; /* ← 上の余白を詰める */
+      background: #fff;
+      border-bottom: 1px solid #e3e3ee;
+      text-align: left;
+    }
+
+    h2 {
+      margin: 0 0 4px; /* ← 下の余白を詰める */
+      font-size: 1.25rem;
+      line-height: 1.4;
+    }
+
+    .sub-copy {
+      margin: 0;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    .sub-copy-2 {
+      margin: 0;
+      color: #777;
+      font-size: 0.85rem;
+    }
+
+    main {
+      padding: 12px 16px; /* ← 余白を詰める */
+      max-width: 900px;
+      margin-left: 0;
+      margin-right: auto;
+    }
+
+    .card {
+      background: #fff;
+      padding: 12px 14px; /* ← card の高さを詰める */
+      border-radius: 10px;
+      margin-top: 12px; /* ← 上の余白を詰める */
+      border: 1px solid #eee;
+    }
+
+    .card h3 {
+      margin: 4px 0 6px; /* ← 見出しの余白を詰める */
+      font-size: 1rem;
+    }
+
+    .card hr {
+      margin: 10px 0; /* ← 区切り線の余白を詰める */
+      border: none;
+      border-top: 1px solid #eee;
+    }
+
+    .flashcard {
+      margin-top: 10px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #fafafe;
+      border: 1px dashed #d3d4f5;
+      text-align: center;
+    }
+
+    .flashcard-term {
+      font-size: 1.3rem;
+      font-weight: bold;
+      word-break: break-word;
+    }
+
+    .flashcard-meaning {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    footer {
+      margin-top: 30px;
+      padding: 16px;
+      text-align: left;
+      font-size: 0.85rem;
+      color: #666;
+      background: #fafafe;
+      border-top: 1px solid #e3e3ee;
+    }
+
+    .btn {
+      padding: 6px 12px; /* ← ボタンも少し小さく */
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      margin-right: 6px;
+    }
+
+    .btn-primary {
+      background: #4c6fff;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #eee;
+      color: #333;
+    }
+
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: default;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+
+  <!-- ★ h2 に Excel読み込み ＆ 再生設定 を統合 ★ -->
+  <h2>
+    1. Excel読み込み ＆ 2. 再生設定
+    <span style="font-size:1rem; font-weight:normal; display:block; margin-top:4px;">
+      Excelから読み込んで、聞くだけでスルスル覚えるフラッシュカード
+    </span>
+  </h2>
+
+  <p class="sub-copy">聞くだけでスルスル覚える、見るだけでもOKのゆる学習アプリ</p>
+  <p class="sub-copy-2">やる気が出ないときは、とりあえず聞くだけ！</p>
+</header>
+
+<main>
+
+  <!-- ★ Excel読み込み ＆ 再生設定 を1つの card に統一 ★ -->
+  <section class="card">
+
+    <!-- Excel 読み込み -->
+    <h3>Excel（XLSX / CSV）を読み込む</h3>
+    <input id="file-input" type="file" accept=".xlsx,.xls,.csv" />
+    <p style="font-size:0.75rem; color:#777; margin-top:6px;">
+      ※1列目：単語 / 2列目：意味 を想定しています。
+    </p>
+
+    <hr>
+
+    <!-- 再生設定 -->
+    <h3>再生設定</h3>
+
+    <div style="margin-bottom:10px;">
+      <button id="btn-start" class="btn btn-primary" disabled>再生スタート</button>
+      <button id="btn-stop" class="btn btn-secondary" disabled>停止</button>
+    </div>
+
+    <div style="margin-bottom:6px;">
+      <label style="font-size:0.85rem;">
+        読み上げ速度：
+        <input id="speed-range" type="range" min="0.5" max="2.0" step="0.1" value="1" />
+        <span id="speed-label">1.0×</span>
+      </label>
+    </div>
+
+    <div style="font-size:0.85rem; color:#444;">
+      <label style="display:block; margin-bottom:4px;">
+        <input id="toggle-loop" type="checkbox" checked />
+        自動ループする
+      </label>
+      <label style="display:block;">
+        <input id="toggle-voice" type="checkbox" checked />
+        単語＋意味を読む
+      </label>
+    </div>
+
+  </section>
+
+  <!-- フラッシュカード -->
+  <section class="card">
+    <h3>フラッシュカード</h3>
+
+    <div class="flashcard">
+      <div id="card-term" class="flashcard-term">ここに単語が表示されます</div>
+      <div id="card-meaning" class="flashcard-meaning">意味がここに表示されます</div>
+      <div id="status" style="font-size:0.75rem; color:#777; margin-top:6px;">
+        まずは Excel または CSV を読み込んでください。
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div>
+    <a href="/privacy-policy.html">プライバシーポリシー</a> |
+    <a href="/terms.html">利用規約</a>
+  </div>
+  <div style="margin-top:8px; font-size:0.75rem;">
+    © 2025 Excelから読み込んで、聞くだけでスルスル覚えるフラッシュカード
+  </div>
+</footer>
+
+<script>
+  let cards = [];
+  let currentIndex = 0;
+  let isPlaying = false;
+  let loopEnabled = true;
+  let readBoth = true;
+  let rate = 1.0;
+  let timerId = null;
+
+  const fileInput   = document.getElementById("file-input");
+  const btnStart    = document.getElementById("btn-start");
+  const btnStop     = document.getElementById("btn-stop");
+  const speedRange  = document.getElementById("speed-range");
+  const speedLabel  = document.getElementById("speed-label");
+  const toggleLoop  = document.getElementById("toggle-loop");
+  const toggleVoice = document.getElementById("toggle-voice");
+  const cardTerm    = document.getElementById("card-term");
+  const cardMeaning = document.getElementById("card-meaning");
+  const statusText  = document.getElementById("status");
+
+  /* ===========================
+     ファイル読み込み（CSV / XLSX 自動判定）
+  =========================== */
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop().toLowerCase();
+
+    if (ext === "xlsx" || ext === "xls") {
+      readXLSX(file);
+    } else {
+      readCSV(file);
+    }
+  });
+
+  /* ===========================
+     XLSX 読み込み
+  =========================== */
+  function readXLSX(file) {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      cards = json
+        .map(row => ({
+          term: (row[0] || "").toString().trim(),
+          meaning: (row[1] || "").toString().trim()
+        }))
+        .filter(c => c.term);
+
+      afterLoad();
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* ===========================
+     CSV（Shift-JIS）読み込み
+  =========================== */
+  function readCSV(file) {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const arrayBuffer = event.target.result;
+      const sjisArray = new Uint8Array(arrayBuffer);
+
+      const utf8String = Encoding.convert(sjisArray, {
+        to: "UNICODE",
+        from: "SJIS",
+        type: "string"
+      });
+
+      const lines = utf8String.split(/\r?\n/).filter(line => line.trim() !== "");
+
+      cards = lines.map(line => {
+        const [term, meaning] = line.split(",");
+        return {
+          term: (term || "").trim(),
+          meaning: (meaning || "").trim()
+        };
+      }).filter(c => c.term);
+
+      afterLoad();
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* ===========================
+     読み込み後の共通処理
+  =========================== */
+  function afterLoad() {
+    currentIndex = 0;
+
+    if (cards.length > 0) {
+      updateCard();
+      statusText.textContent = `読み込み完了：${cards.length}件のカードがあります。`;
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+    } else {
+      statusText.textContent = "カードがありません。Excel/CSV の内容を確認してください。";
+      btnStart.disabled = true;
+      btnStop.disabled = true;
+    }
+  }
+
+  /* ===========================
+     読み上げ
+  =========================== */
+  function speak(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = rate;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+  }
+
+  /* ===========================
+     再生ロジック
+  =========================== */
+  function playCurrent() {
+    if (!cards.length) return;
+
+    const card = cards[currentIndex];
+    updateCard();
+
+    let textToSpeak = card.term;
+    if (readBoth && card.meaning) {
+      textToSpeak = `${card.term}。${card.meaning}`;
+    }
+    speak(textToSpeak);
+
+    timerId = setTimeout(() => {
+      if (!isPlaying) return;
+
+      currentIndex++;
+      if (currentIndex >= cards.length) {
+        if (loopEnabled) {
+          currentIndex = 0;
+        } else {
+          stopPlay();
+          return;
+        }
+      }
+      playCurrent();
+    }, 2500);
+  }
+
+  function startPlay() {
+    if (!cards.length || isPlaying) return;
+    isPlaying = true;
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    statusText.textContent = "再生中：耳だけでOKです。";
+    playCurrent();
+  }
+
+  function stopPlay() {
+    isPlaying = false;
+    btnStart.disabled = !cards.length;
+    btnStop.disabled = true;
+
+    if (timerId) {
+      clearTimeout(timerId);
+      timerId = null;
+    }
+
+    speechSynthesis.cancel();
+
+    // Chrome 対策：少し待つことで次回の再生が無視されにくくなる
+    setTimeout(() => {
+      statusText.textContent = "停止中：もう一度聞きたいときは再生を押してください。";
+    }, 150);
+  }
+
+  function updateCard() {
+    if (!cards.length) return;
+    const card = cards[currentIndex];
+    cardTerm.textContent = card.term || "（単語なし）";
+    cardMeaning.textContent = card.meaning || "";
+  }
+
+  /* ===========================
+     イベント
+  =========================== */
+  btnStart.addEventListener("click", startPlay);
+  btnStop.addEventListener("click", stopPlay);
+
+  speedRange.addEventListener("input", (e) => {
+    rate = Number(e.target.value);
+    speedLabel.textContent = `${rate.toFixed(1)}×`;
+  });
+
+  toggleLoop.addEventListener("change", (e) => {
+    loopEnabled = e.target.checked;
+  });
+
+  toggleVoice.addEventListener("change", (e) => {
+    readBoth = e.target.checked;
+  });
+</script>
+
+</body>
+</html>
