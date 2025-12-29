@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>Excelから読み込んで、聞くだけでスルスル覚えるフラッシュカード</title>
+  <title>【英語学習】Excelから読み込んで、聞くだけでスルスル覚えるフラッシュカード</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Shift-JIS → UTF-8 変換 -->
@@ -20,14 +20,14 @@
     }
 
     header {
-      padding: 12px 16px 4px 16px; /* ← 上の余白を詰める */
+      padding: 12px 16px 4px 16px;
       background: #fff;
       border-bottom: 1px solid #e3e3ee;
       text-align: left;
     }
 
     h2 {
-      margin: 0 0 4px; /* ← 下の余白を詰める */
+      margin: 0 0 4px;
       font-size: 1.25rem;
       line-height: 1.4;
     }
@@ -45,7 +45,7 @@
     }
 
     main {
-      padding: 12px 16px; /* ← 余白を詰める */
+      padding: 12px 16px;
       max-width: 900px;
       margin-left: 0;
       margin-right: auto;
@@ -53,19 +53,19 @@
 
     .card {
       background: #fff;
-      padding: 12px 14px; /* ← card の高さを詰める */
+      padding: 12px 14px;
       border-radius: 10px;
-      margin-top: 12px; /* ← 上の余白を詰める */
+      margin-top: 12px;
       border: 1px solid #eee;
     }
 
     .card h3 {
-      margin: 4px 0 6px; /* ← 見出しの余白を詰める */
+      margin: 4px 0 6px;
       font-size: 1rem;
     }
 
     .card hr {
-      margin: 10px 0; /* ← 区切り線の余白を詰める */
+      margin: 10px 0;
       border: none;
       border-top: 1px solid #eee;
     }
@@ -103,7 +103,7 @@
     }
 
     .btn {
-      padding: 6px 12px; /* ← ボタンも少し小さく */
+      padding: 6px 12px;
       border-radius: 999px;
       border: none;
       cursor: pointer;
@@ -131,8 +131,6 @@
 
 <body>
 <header>
-
-  <!-- ★ h2 に Excel読み込み ＆ 再生設定 を統合 ★ -->
   <h2>
     1. Excel読み込み ＆ 2. 再生設定
     <span style="font-size:1rem; font-weight:normal; display:block; margin-top:4px;">
@@ -146,19 +144,15 @@
 
 <main>
 
-  <!-- ★ Excel読み込み ＆ 再生設定 を1つの card に統一 ★ -->
   <section class="card">
-
-    <!-- Excel 読み込み -->
     <h3>Excel（XLSX / CSV）を読み込む</h3>
     <input id="file-input" type="file" accept=".xlsx,.xls,.csv" />
     <p style="font-size:0.75rem; color:#777; margin-top:6px;">
-      ※1列目：単語 / 2列目：意味 を想定しています。
+      ※1列目：英語（ネイティブ） / 2列目：日本語（ネイティブ）
     </p>
 
     <hr>
 
-    <!-- 再生設定 -->
     <h3>再生設定</h3>
 
     <div style="margin-bottom:10px;">
@@ -187,7 +181,6 @@
 
   </section>
 
-  <!-- フラッシュカード -->
   <section class="card">
     <h3>フラッシュカード</h3>
 
@@ -221,6 +214,24 @@
   let rate = 1.0;
   let timerId = null;
 
+  let voices = [];
+
+  function loadVoices() {
+    voices = speechSynthesis.getVoices();
+  }
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+
+  function speakWithLang(text, lang) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = rate;
+
+    const voice = voices.find(v => v.lang === lang);
+    if (voice) utter.voice = voice;
+
+    speechSynthesis.speak(utter);
+  }
+
   const fileInput   = document.getElementById("file-input");
   const btnStart    = document.getElementById("btn-start");
   const btnStop     = document.getElementById("btn-stop");
@@ -232,9 +243,6 @@
   const cardMeaning = document.getElementById("card-meaning");
   const statusText  = document.getElementById("status");
 
-  /* ===========================
-     ファイル読み込み（CSV / XLSX 自動判定）
-  =========================== */
   fileInput.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -248,9 +256,6 @@
     }
   });
 
-  /* ===========================
-     XLSX 読み込み
-  =========================== */
   function readXLSX(file) {
     const reader = new FileReader();
 
@@ -276,9 +281,6 @@
     reader.readAsArrayBuffer(file);
   }
 
-  /* ===========================
-     CSV（Shift-JIS）読み込み
-  =========================== */
   function readCSV(file) {
     const reader = new FileReader();
 
@@ -308,9 +310,6 @@
     reader.readAsArrayBuffer(file);
   }
 
-  /* ===========================
-     読み込み後の共通処理
-  =========================== */
   function afterLoad() {
     currentIndex = 0;
 
@@ -326,30 +325,21 @@
     }
   }
 
-  /* ===========================
-     読み上げ
-  =========================== */
-  function speak(text) {
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = rate;
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utter);
-  }
-
-  /* ===========================
-     再生ロジック
-  =========================== */
   function playCurrent() {
     if (!cards.length) return;
 
     const card = cards[currentIndex];
     updateCard();
 
-    let textToSpeak = card.term;
-    if (readBoth && card.meaning) {
-      textToSpeak = `${card.term}。${card.meaning}`;
-    }
-    speak(textToSpeak);
+    speechSynthesis.cancel();
+
+    speakWithLang(card.term, "en-US");
+
+    setTimeout(() => {
+      if (readBoth && card.meaning) {
+        speakWithLang(card.meaning, "ja-JP");
+      }
+    }, 800);
 
     timerId = setTimeout(() => {
       if (!isPlaying) return;
@@ -388,7 +378,6 @@
 
     speechSynthesis.cancel();
 
-    // Chrome 対策：少し待つことで次回の再生が無視されにくくなる
     setTimeout(() => {
       statusText.textContent = "停止中：もう一度聞きたいときは再生を押してください。";
     }, 150);
@@ -401,9 +390,6 @@
     cardMeaning.textContent = card.meaning || "";
   }
 
-  /* ===========================
-     イベント
-  =========================== */
   btnStart.addEventListener("click", startPlay);
   btnStop.addEventListener("click", stopPlay);
 
